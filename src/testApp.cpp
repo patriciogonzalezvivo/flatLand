@@ -10,21 +10,15 @@ void testApp::setup(){
     
     gui.setup("panel");
     gui.add(threshold.setup("threshold",80.0f,0.0f,255.0f));
+    gui.add(topBottomSmoothing.setup("threshold_Smoothing",0.1f, 0.0f, 1.0f));
+    gui.add(offSetSmoothing.setup("transition_Smoothing", 0.6f, 0.0f, 1.0f));
     
     
-    //source.loadImage("2T6C6971.jpg");
-    
-    player.loadMovie("highline.mov");
-    player.play();
-    
-    
-    for (int i = 0; i < player.width; i++){
+    bImage = true;
+    source.loadImage("03.jpg");
+    target.allocate(source.width, player.height*2, OF_IMAGE_COLOR);  
+    for (int i = 0; i < source.width; i++)
         offsetSmooth.push_back(0);
-    }
-    
-    
-    //source.loadImage("03.jpeg");
-    target.allocate(player.width, player.height*2, OF_IMAGE_COLOR);    
 }
 
 void testApp::processImage(ofImage & input, ofImage & output, int _threshold){
@@ -45,8 +39,6 @@ void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _thresho
     vector < int > offSet;
     
     ofPixels trgPixels = output.getPixelsRef();
-    
-    //cout << output.getPixelsRef().getWidth() << endl;
     
     for (int x = 0; x < width; x++){
         for(int y = 0; y < height*2; y++){
@@ -81,12 +73,14 @@ void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _thresho
                     break;
                 //}
                 
-            } 
+            } else {
+                a.lerp(b, topBottomSmoothing);
+            }
         }
     }
     
     for (int i =0; i < width; i++){
-        offsetSmooth[i] = 0.60 * offsetSmooth[i] + 0.4 * offSet[i];
+        offsetSmooth[i] = offSetSmoothing * offsetSmooth[i] + (1.0f - offSetSmoothing ) * offSet[i];
     }
     
     for (int x = 0; x < width; x++){
@@ -104,16 +98,27 @@ void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _thresho
 
 //--------------------------------------------------------------
 void testApp::update(){
-    processImage(player.getPixelsRef(), target, ofMap(mouseX,0,ofGetWidth(),0,255));
-    //player.update();
+    
+    if (bImage){
+        processImage(source.getPixelsRef(), target, threshold);
+    } else {
+        processImage(player.getPixelsRef(), target, threshold);
+        player.update();
+    }
 }
 
 //--------------------------------------------------------------
 void testApp::draw(){
     ofPushMatrix();
     ofScale(0.5, 0.5);
-    source.draw(0, 0);
-    target.draw(player.width,0);
+    if(bImage){
+        source.draw(0, 0);
+        target.draw(source.width,0);
+    } else {
+        player.draw(0, 0);
+        target.draw(player.width,0);
+    }
+    
     ofPopMatrix();
     
     glDisable(GL_DEPTH);
@@ -181,8 +186,26 @@ void testApp::gotMessage(ofMessage msg){
 void testApp::dragEvent(ofDragInfo dragInfo){
     
     if(dragInfo.files.size() > 0){
-        source.loadImage(dragInfo.files[0]);
-        target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);
+        bImage = source.loadImage(dragInfo.files[0]);
+        if (bImage){
+            cout << "Loading Image " << dragInfo.files[0] << endl;
+            target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);
+            offsetSmooth.clear();
+            for (int i = 0; i < source.width; i++){
+                offsetSmooth.push_back(0);
+            }
+        } else {
+            
+            if (player.loadMovie(dragInfo.files[0])){
+                player.play();
+                cout << "Loading Video " << dragInfo.files[0] << endl;
+                target.allocate(player.width, player.height*2, OF_IMAGE_COLOR);
+                offsetSmooth.clear();
+                for (int i = 0; i < player.width; i++){
+                    offsetSmooth.push_back(0);
+                }
+            }
+        }
     }
 
 }

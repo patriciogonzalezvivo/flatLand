@@ -23,15 +23,18 @@ public:
     void    processImage(ofImage & input, ofImage & output, int _threshold);
     double  ColourDistance(ofColor _src, ofColor _dst);
     
+    ofVideoPlayer player;
 	ofImage source;
     ofImage target;
 
     vector < float > offsetSmooth;
     
     ofxPanel gui;
-    ofxFloatSlider threshold;
+    ofxFloatSlider  threshold;
+    ofxFloatSlider  offSetSmoothing;
+    ofxFloatSlider  topBottomSmoothing;
     
     string fileName;
 
-    ofVideoPlayer player;
+    bool    bImage;
 };
