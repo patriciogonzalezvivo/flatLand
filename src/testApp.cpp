@@ -137,6 +137,11 @@ void testApp::gotMessage(ofMessage msg){
 }
 
 //--------------------------------------------------------------
-void testApp::dragEvent(ofDragInfo dragInfo){ 
+void testApp::dragEvent(ofDragInfo dragInfo){
+    
+    if(dragInfo.files.size() > 0){
+        source.loadImage(dragInfo.files[0]);
+        target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);
+    }
 
 }

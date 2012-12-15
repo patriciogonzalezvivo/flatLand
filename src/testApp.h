@@ -29,4 +29,5 @@ public:
     ofxPanel gui;
     ofxFloatSlider threshold;
     
+    string fileName;
 };
