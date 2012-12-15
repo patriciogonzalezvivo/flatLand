@@ -26,8 +26,12 @@ public:
 	ofImage source;
     ofImage target;
 
+    vector < float > offsetSmooth;
+    
     ofxPanel gui;
     ofxFloatSlider threshold;
     
     string fileName;
+
+    ofVideoPlayer player;
 };
