@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ofMain.h"
+#include "ofxGui.h"
 
 class testApp : public ofBaseApp{
 public:
@@ -17,9 +18,7 @@ public:
     void windowResized(int w, int h);
     void dragEvent(ofDragInfo dragInfo);
     void gotMessage(ofMessage msg);
-	
-    
-    
+
     void    processImage(ofPixels & input, ofImage & output, int _threshold);
     void    processImage(ofImage & input, ofImage & output, int _threshold);
     double  ColourDistance(ofColor _src, ofColor _dst);
@@ -27,4 +26,7 @@ public:
 	ofImage source;
     ofImage target;
 
+    ofxPanel gui;
+    ofxFloatSlider threshold;
+    
 };

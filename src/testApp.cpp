@@ -4,11 +4,16 @@
 void testApp::setup(){
     ofSetVerticalSync(true);
     
-    source.loadImage("03.jpeg");
-    target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);
+    gui.setup("panel");
+    gui.add(threshold.setup("threshold",80.0f,0.0f,255.0f));
     
+    source.loadImage("03.jpeg");
+    target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);    
 }
 
+void testApp::processImage(ofImage & input, ofImage & output, int _threshold){
+    processImage(input.getPixelsRef(), output, _threshold);
+}
 
 void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _threshold){
     
@@ -58,20 +63,20 @@ void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _thresho
     output.setFromPixels(trgPixels);
 }
 
-void testApp::processImage(ofImage & input, ofImage & output, int _threshold){
-    processImage(input.getPixelsRef(), output, _threshold);   
-}
-
 //--------------------------------------------------------------
 void testApp::update(){
-    processImage(source, target, ofMap(mouseX,0,ofGetWidth(),0,255));
+    processImage(source, target, threshold);
 }
 
 //--------------------------------------------------------------
 void testApp::draw(){
+    ofPushMatrix();
     ofScale(0.5, 0.5);
     source.draw(0, 0);
     target.draw(source.width,0);
+    ofPopMatrix();
+    
+    gui.draw();
 }
 
 //  Take from http://www.compuphase.com/cmetric.htm
@@ -87,7 +92,13 @@ double testApp::ColourDistance(ofColor e1, ofColor e2){
 
 //--------------------------------------------------------------
 void testApp::keyPressed(int key){
-
+    if(key == 's') {
+        gui.saveToFile("settings.xml");
+    }
+    
+    if(key == 'l') {
+        gui.loadFromFile("settings.xml");
+    }
 }
 
 //--------------------------------------------------------------
