@@ -18,11 +18,13 @@ public:
     void dragEvent(ofDragInfo dragInfo);
     void gotMessage(ofMessage msg);
 	
-    void    processImage(string _imageFile, int _threshold);
+    
+    
+    void    processImage(ofPixels & input, ofImage & output, int _threshold);
+    void    processImage(ofImage & input, ofImage & output, int _threshold);
     double  ColourDistance(ofColor _src, ofColor _dst);
     
 	ofImage source;
     ofImage target;
-    
-    int     *offSet;
+
 };

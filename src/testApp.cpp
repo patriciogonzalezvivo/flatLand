@@ -4,22 +4,23 @@
 void testApp::setup(){
     ofSetVerticalSync(true);
     
-    offSet = NULL;
+    source.loadImage("03.jpeg");
+    target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);
+    
 }
 
-void testApp::processImage(string _imageFile, int _threshold){
-    if(offSet != NULL)
-        delete [] offSet;
-    
-    source.loadImage(_imageFile);
-    int width = source.getWidth();
-    int height = source.getHeight();
-    target.allocate(width, height*2, OF_IMAGE_COLOR);
-    offSet = new int[width];
-    
-    ofPixels srcPixels = source.getPixelsRef();
-    ofPixels trgPixels = target.getPixelsRef();
 
+void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _threshold){
+    
+    int width = srcPixels.getWidth();
+    int height = srcPixels.getHeight();
+    
+    vector < int > offSet;
+    
+    ofPixels trgPixels = output.getPixelsRef();
+    
+    //cout << output.getPixelsRef().getWidth() << endl;
+    
     for (int x = 0; x < width; x++){
         for(int y = 0; y < height*2; y++){
             ofColor c = ofColor(255);
@@ -29,7 +30,7 @@ void testApp::processImage(string _imageFile, int _threshold){
     
     for (int x = 0; x < width; x++){
         ofColor a = srcPixels.getColor(x, 0);
-        offSet[x] = 0;
+        offSet.push_back(0);
         
         for(int y = 0; y < height; y++){
             ofColor b = srcPixels.getColor(x, y);
@@ -47,17 +48,23 @@ void testApp::processImage(string _imageFile, int _threshold){
     for (int x = 0; x < width; x++){
         for(int y = 0; y < height; y++){
             ofColor c = srcPixels.getColor(x, y);
-            trgPixels.setColor(x, height*0.5 + y - offSet[x], c );
+            
+            int h = height*0.5 + y - offSet[x];
+            h = ofClamp(h, 0, height *2 - 1);
+            
+            trgPixels.setColor(x, h, c );
         }
     }
-    
-    target.setFromPixels(trgPixels);
-    target.update();
+    output.setFromPixels(trgPixels);
+}
+
+void testApp::processImage(ofImage & input, ofImage & output, int _threshold){
+    processImage(input.getPixelsRef(), output, _threshold);   
 }
 
 //--------------------------------------------------------------
 void testApp::update(){
-    processImage("03.jpeg", ofMap(mouseX,0,ofGetWidth(),0,255));
+    processImage(source, target, ofMap(mouseX,0,ofGetWidth(),0,255));
 }
 
 //--------------------------------------------------------------
