@@ -1,110 +1,115 @@
 #include "testApp.h"
-
-bool sortColor (const ofColor &a, const ofColor &b){
-    return a.getBrightness() > b.getBrightness();
-}
+#define STRINGIFY(A) #A
 
 //--------------------------------------------------------------
 void testApp::setup(){
     ofSetVerticalSync(true);
     
     gui.setup("panel");
+    gui.add(horizon.setup("horizon",0.5,0.0,1.0));
     gui.add(threshold.setup("threshold",80.0f,0.0f,255.0f));
-    gui.add(topBottomSmoothing.setup("threshold_Smoothing",0.1f, 0.0f, 1.0f));
-    gui.add(offSetSmoothing.setup("transition_Smoothing", 0.6f, 0.0f, 1.0f));
+    gui.add(thresholdSmoothing.setup("threshold_Smoothing",0.1f, 0.0f, 1.0f));
+    gui.add(transitionSmoothing.setup("transition_Smoothing", 0.6f, 0.0f, 1.0f));
     
+    bImage = sourceImage.loadImage("03.jpeg");
+    offSetTexture.allocate(sourceImage.width,1, GL_RGB32F);
+    targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
     
-    bImage = true;
-    source.loadImage("03.jpg");
-    target.allocate(source.width, player.height*2, OF_IMAGE_COLOR);  
-    for (int i = 0; i < source.width; i++)
-        offsetSmooth.push_back(0);
+    string fragShader = STRINGIFY(uniform sampler2DRect offsetTexture;
+                                  uniform sampler2DRect sourceTexture;
+                                  uniform float height;
+                                  uniform float horizon;
+                                  
+                                  void main(){
+                                      vec2 st = gl_TexCoord[0].st;
+                                      
+                                      float horizonOffset = texture2DRect(offsetTexture, vec2(st.x,1.0)).r * height;
+                                      float horizonLine = horizon * height;
+                                      
+                                      horizonOffset = clamp(horizonOffset,0.0,height);
+                                      float offSet = st.y + horizonOffset - horizonLine;
+                                      
+                                      vec4 color = texture2DRect(sourceTexture, vec2(st.x, offSet));
+                                      
+                                      if ( (offSet > height) || (offSet < 0.0 )){
+                                          color = vec4(0.0,0.0,0.0,0.0);
+                                      } 
+                                      
+                                      gl_FragColor = color;
+                                  }
+                                  );
+    
+    flatShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragShader);
+    flatShader.linkProgram();
 }
 
-void testApp::processImage(ofImage & input, ofImage & output, int _threshold){
-    processImage(input.getPixelsRef(), output, _threshold);
+void testApp::processImage(ofImage & input, int _threshold){
+    processImage(input.getPixelsRef(), _threshold);
 }
 
-void  testApp::processImage(ofPixels & srcPixels, ofImage & output, int _threshold){
-    
-    
-    bool bUseMedian = true;
-    vector < ofColor > colors;
-    int kernelSize = 3;  // use me +/- kernel (so 4 = 4+4+1 = 9);
-    
+void  testApp::processImage(ofPixels & srcPixels, int _threshold){
     
     int width = srcPixels.getWidth();
     int height = srcPixels.getHeight();
     
-    vector < int > offSet;
-    
-    ofPixels trgPixels = output.getPixelsRef();
-    
-    for (int x = 0; x < width; x++){
-        for(int y = 0; y < height*2; y++){
-            ofColor c = ofColor(255);
-            trgPixels.setColor(x,y, c);
-        }
-    }
+    ofFloatPixels offSet;
+    offSet.allocate(width, 1, 3);
     
     for (int x = 0; x < width; x++){
         ofColor a = srcPixels.getColor(x, 0);
-        offSet.push_back(0);
+        offSet.setColor(x, 0, ofFloatColor(0.0));
         
         for(int y = 0; y < height; y++){
-            
-            ofColor b;
-            b = srcPixels.getColor(x, y);
-            
+            ofColor b = srcPixels.getColor(x, y);
             
             if (ColourDistance(a,b) > _threshold){
-                
-//                colors.clear();
-//                for (int k = (y - kernelSize); k <= (y+kernelSize); k++){
-//                    // printf("checking %i \n", k);
-//                    int kSafe = ofClamp(k, 0, height-1);
-//                    colors.push_back(srcPixels.getColor(x, kSafe));
-//                }
-//                sort(colors.begin(), colors.end(), sortColor);
-//                ofColor c = colors[0 + kernelSize];
-//        
-//                if (ColourDistance(a,c) > _threshold){
-                    offSet[x] = y;
-                    break;
-                //}
-                
+                offSet.setColor(x, 0, ofFloatColor((float)y/(float)height));
+                break;
             } else {
-                a.lerp(b, topBottomSmoothing);
+                a.lerp(b,thresholdSmoothing);
             }
         }
     }
-    
-    for (int i =0; i < width; i++){
-        offsetSmooth[i] = offSetSmoothing * offsetSmooth[i] + (1.0f - offSetSmoothing ) * offSet[i];
-    }
-    
-    for (int x = 0; x < width; x++){
-        for(int y = 0; y < height; y++){
-            ofColor c = srcPixels.getColor(x, y);
-            
-            int h = height*0.5 + y - offsetSmooth[x];
-            h = ofClamp(h, 0, height *2 - 1);
-            
-            trgPixels.setColor(x, h, c );
-        }
-    }
-    output.setFromPixels(trgPixels);
+
+    offSetTexture.loadData(offSet);
 }
 
 //--------------------------------------------------------------
 void testApp::update(){
     
     if (bImage){
-        processImage(source.getPixelsRef(), target, threshold);
+        processImage(sourceImage.getPixelsRef(), threshold);
     } else {
-        processImage(player.getPixelsRef(), target, threshold);
-        player.update();
+        processImage(sourceVideo.getPixelsRef(), threshold);
+        sourceVideo.update();
     }
+    
+    targetFbo.begin();
+    ofClear(255);
+    
+    flatShader.begin();
+    flatShader.setUniformTexture("offsetTexture", offSetTexture, 0);
+    flatShader.setUniform1f("horizon", horizon);
+    
+    if (bImage){
+        flatShader.setUniformTexture("sourceTexture", sourceImage.getTextureReference(), 1);
+        flatShader.setUniform1f("height", (float)sourceImage.getHeight());
+    } else {
+        flatShader.setUniformTexture("sourceTexture", sourceVideo.getTextureReference(), 1);
+        flatShader.setUniform1f("height", (float)sourceVideo.getHeight());
+    }
+    
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0); glVertex3f(0, 0, 0);
+    glTexCoord2f(targetFbo.getWidth(), 0); glVertex3f(targetFbo.getWidth(), 0, 0);
+    glTexCoord2f(targetFbo.getWidth(), targetFbo.getHeight()); glVertex3f(targetFbo.getWidth(), targetFbo.getHeight(), 0);
+    glTexCoord2f(0,targetFbo.getHeight());  glVertex3f(0,targetFbo.getHeight(), 0);
+    glEnd();
+    
+    flatShader.end();
+    targetFbo.end();
+    
+    ofSetWindowTitle(ofToString(ofGetFrameRate()));
 }
 
 //--------------------------------------------------------------
@@ -112,16 +117,20 @@ void testApp::draw(){
     ofPushMatrix();
     ofScale(0.5, 0.5);
     if(bImage){
-        source.draw(0, 0);
-        target.draw(source.width,0);
+        sourceImage.draw(0, 0);
+        targetFbo.draw(sourceImage.getWidth(),0);
     } else {
-        player.draw(0, 0);
-        target.draw(player.width,0);
+        sourceVideo.draw(0, 0);
+        targetFbo.draw(sourceVideo.getWidth(),0);
     }
-    
+    ofPopMatrix();
+
+    ofPushMatrix();
+    ofTranslate(0, ofGetHeight()-10);
+    ofScale(10, 10);
+    offSetTexture.draw(0,0);
     ofPopMatrix();
     
-    glDisable(GL_DEPTH);
     gui.draw();
 }
 
@@ -186,24 +195,17 @@ void testApp::gotMessage(ofMessage msg){
 void testApp::dragEvent(ofDragInfo dragInfo){
     
     if(dragInfo.files.size() > 0){
-        bImage = source.loadImage(dragInfo.files[0]);
+        bImage = sourceImage.loadImage(dragInfo.files[0]);
         if (bImage){
-            cout << "Loading Image " << dragInfo.files[0] << endl;
-            target.allocate(source.width, source.height*2, OF_IMAGE_COLOR);
-            offsetSmooth.clear();
-            for (int i = 0; i < source.width; i++){
-                offsetSmooth.push_back(0);
-            }
+            targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
+            offSetTexture.clear();
+            offSetTexture.allocate(sourceImage.width,1, GL_RGB32F);
         } else {
-            
-            if (player.loadMovie(dragInfo.files[0])){
-                player.play();
-                cout << "Loading Video " << dragInfo.files[0] << endl;
-                target.allocate(player.width, player.height*2, OF_IMAGE_COLOR);
-                offsetSmooth.clear();
-                for (int i = 0; i < player.width; i++){
-                    offsetSmooth.push_back(0);
-                }
+            if (sourceVideo.loadMovie(dragInfo.files[0])){
+                sourceVideo.play();
+                targetFbo.allocate(sourceVideo.getWidth(), sourceVideo.getHeight()*2);
+                offSetTexture.clear();
+                offSetTexture.allocate(sourceVideo.getWidth(),1, GL_RGB32F);
             }
         }
     }

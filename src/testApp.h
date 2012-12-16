@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include "ofxGui.h"
+#include "ofxFX.h"
 
 class testApp : public ofBaseApp{
 public:
@@ -19,22 +20,22 @@ public:
     void dragEvent(ofDragInfo dragInfo);
     void gotMessage(ofMessage msg);
 
-    void    processImage(ofPixels & input, ofImage & output, int _threshold);
-    void    processImage(ofImage & input, ofImage & output, int _threshold);
-    double  ColourDistance(ofColor _src, ofColor _dst);
+    void            processImage(ofPixels & input, int _threshold);
+    void            processImage(ofImage & input, int _threshold);
+    double          ColourDistance(ofColor _src, ofColor _dst);
     
-    ofVideoPlayer player;
-	ofImage source;
-    ofImage target;
+	ofImage         sourceImage;
+    ofVideoPlayer   sourceVideo;
+    
+    ofTexture       offSetTexture;
+    ofShader        flatShader;
+    ofFbo           targetFbo;
 
-    vector < float > offsetSmooth;
-    
-    ofxPanel gui;
+    ofxPanel        gui;
+    ofxFloatSlider  horizon;
     ofxFloatSlider  threshold;
-    ofxFloatSlider  offSetSmoothing;
-    ofxFloatSlider  topBottomSmoothing;
+    ofxFloatSlider  thresholdSmoothing;
+    ofxFloatSlider  transitionSmoothing;
     
-    string fileName;
-
-    bool    bImage;
+    bool            bImage;
 };
