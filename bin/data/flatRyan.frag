@@ -14,34 +14,29 @@ float map(float _value, float _minIn, float _maxIn, float _minOut, float _maxOut
 void main(){
 	vec2 st = gl_TexCoord[0].st;
 
-	// float horizonLine = height; //horizon * height;
+	float horizonLine = horizon * height;
 	float actualOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).r;
 	float horizonOffset = actualOffset * height;
-	float offset = 0.0;
+	float offset = st.y + horizonOffset - horizonLine;
 
 	vec4 color = vec4(0.0,0.0,0.0,0.0);
 
-	//	Height become the middle of the target
-	//
-	if (st.y < height){
-		//	Top
-		//
-	    if (st.y < horizonOffset){
-	    	color = vec4(0.0,0.0,0.0,0.0);
-	    } else {
-	    	float pct = ((st.y-horizonOffset)/height);
-	    	offset = map(pct,0.0,1.0,0.0,horizonOffset);
+	if (st.y < horizonLine){
+	    float pct = 1.0 - (st.y/horizonOffset);
+	    offset = map(pct,1.0,0.0,0.0,horizonOffset);
+	    if (offset < horizonOffset){
 	    	color = texture2DRect(sourceTexture, vec2(st.x, offset));
-	    } 
+	    } else {
+	    	color = vec4(0.0,0.0,0.0,0.0);
+	    }
+	    
 	} else {
-		//	Buttom
-		//
-		offset = st.y + horizonOffset - height;
-		if ( st.y < (height*2.0-horizonOffset) ){
-			color = texture2DRect(sourceTexture, vec2(st.x, offset));
-		} else {
-			color = vec4(0.0,0.0,0.0,0.0);
-		}
+		color = texture2DRect(sourceTexture, vec2(st.x, offset));
+
+	}
+
+	if ( (st.y > (height-horizonOffset+horizonLine))  || (offset < 0.0 )){
+		color = vec4(0.0,0.0,0.0,0.0);
 	}
 
 	gl_FragColor = color;
