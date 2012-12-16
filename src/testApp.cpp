@@ -43,6 +43,7 @@ void testApp::processImage(ofImage & input, int _threshold){
 void  testApp::processImage(ofPixels & srcPixels, int _threshold){
     
     offsetPts.clear();
+    offsetPointsCopy.clear();
     
     int width = srcPixels.getWidth();
     int height = srcPixels.getHeight();
@@ -55,7 +56,7 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
         
         
         offsetPts.push_back(ofPoint(x, 0));
-        
+        offsetPointsCopy.push_back(ofPoint(x,0));
         for(int y = 0; y < height; y++){
             
             ofFloatColor b = srcPixels.getColor(x, y);
@@ -77,13 +78,6 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
             }
         }
     }
-    
-    
-    // now let's clean up offsetPts;
-    
-    // let's make a copy of the points to median filter into  (Can't do inplace)
-    vector < ofPoint > offsetPointsCopy;
-    offsetPointsCopy.reserve(offsetPts.size());
     
     // size of our kernel (take me +/- kernel size, so 3 = 1+ 3+3, 7 values).
     int kernelSize = 15;
@@ -107,26 +101,17 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
         offsetPointsCopy[i] = medVal;
     }
     
-    
-    
     for (int x = 0; x < width; x++){
          ofFloatColor newOffset;
          newOffset.r = (float)offsetPointsCopy[x].y/(float)height;
         offSet.setColor(x, 0, newOffset);
     }
 
-    
-    
-
     offSetTexture.loadData(offSet);
 }
 
 //--------------------------------------------------------------
 void testApp::update(){
-    
-    
-  
-    
     
     if (bImage){
         processImage(sourceImage.getPixelsRef(), threshold);
@@ -190,6 +175,12 @@ void testApp::draw(){
     ofPolyline line;
     line.addVertices(offsetPts);
     line.draw();
+    
+    ofSetColor(255,0,255);
+    ofPolyline mediuanline;
+    mediuanline.addVertices(offsetPointsCopy);
+    mediuanline.draw();
+    
     ofSetColor(255,255,255);
     
     ofPopMatrix();
@@ -199,9 +190,7 @@ void testApp::draw(){
     ofScale(10, 10);
     offSetTexture.draw(0,0);
     ofPopMatrix();
-    
-    
-    
+
     gui.draw();
 }
 

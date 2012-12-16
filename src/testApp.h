@@ -27,7 +27,7 @@ public:
     ofVideoPlayer   sourceVideo;
     
     vector < ofPoint > offsetPts;
-    
+    vector < ofPoint > offsetPointsCopy;
     
     ofFloatPixels   offSet;
     ofTexture       offSetTexture;
