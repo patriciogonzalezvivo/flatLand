@@ -1,3 +1,6 @@
+
+
+
 uniform sampler2DRect offsetTexture;
 uniform sampler2DRect sourceTexture;
 uniform float height;
@@ -13,20 +16,25 @@ void main(){
 
 	float horizonOffset = actualOffset * height;
 
-	horizonOffset = clamp(horizonOffset,0.0,height);
+	//horizonOffset = clamp(horizonOffset,0.0,height);
 	float offSet = st.y + horizonOffset - horizonLine;
 
 	vec4 color = texture2DRect(sourceTexture, vec2(st.x, offSet));
 
-/*     if (st.y > horizonLine){
+ if (st.y > horizonLine){
           
-          float yMapped =  (st.y - horizonOffset ) / (height);
-          color = texture2DRect(sourceTexture, vec2(st.x, horizonLine + yMapped*height*1.0));
-          //color.r = 1.0;
-      }
-*/
 
-	if ( (offSet > height) || (offSet < 0.0 )){
+
+          float yMapped = (st.y - horizonLine) / (height/2.0);
+
+          float yVal =  (1.0-yMapped) * offSet + yMapped  * ( height );
+
+          color = texture2DRect(sourceTexture, vec2(st.x, yVal));
+          //color.r = yMapped;
+      }
+
+
+	if ( (st.y > (horizonLine + height/2.0)) || (offSet < 0.0 )){
 	color = vec4(0.0,0.0,0.0,0.0);
 }
 
