@@ -5,6 +5,11 @@ bool sortColor (const ofColor &a, const ofColor &b){
     return a.getBrightness() > b.getBrightness();
 }
 
+bool sortPtsByY( const ofPoint & a, const ofPoint & b){
+    return a.y > b.y;
+}
+
+
 //--------------------------------------------------------------
 void testApp::setup(){
     ofSetVerticalSync(true);
@@ -31,8 +36,6 @@ void testApp::setup(){
                                       
                                       float horizonLine = horizon * height;
                                       
-                                      float previuspreviusOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).b;
-                                      float previusOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).g;
                                       float actualOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).r;
                                       
                                       float horizonOffset = actualOffset * height;
@@ -71,32 +74,75 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
     int height = srcPixels.getHeight();
     
     for (int x = 0; x < width; x++){
+        
         ofColor a = srcPixels.getColor(x, 0);
-        ofFloatColor prevOffSet = offSet.getColor(x, 0);
-        offSet.setColor(x, 0, ofFloatColor(0.0));
+        //ofFloatColor prevOffSet = offSet.getColor(x, 0);
+        //offSet.setColor(x, 0, ofFloatColor(0.0));
         
         
         offsetPts.push_back(ofPoint(x, 0));
         
         for(int y = 0; y < height; y++){
+            
             ofFloatColor b = srcPixels.getColor(x, y);
             
             if (ColourDistance(a,b) > _threshold){
-                ofFloatColor newOffset;
-                newOffset.r = (float)y/(float)height;
+                
+                //ofFloatColor newOffset;
+                //newOffset.r = (float)y/(float)height;
                 
                 offsetPts[x].y = y;
                 
-                newOffset.g = prevOffSet.r; 
-                newOffset.b = prevOffSet.g;
+                //newOffset.g = prevOffSet.r; 
+                //newOffset.b = prevOffSet.g;
                 
-                offSet.setColor(x, 0, newOffset);
+                //offSet.setColor(x, 0, newOffset);
                 break;
             } else {
                 a.lerp(b,thresholdSmoothing);
             }
         }
     }
+    
+    
+    // now let's clean up offsetPts;
+    
+    // let's make a copy of the points to median filter into  (Can't do inplace)
+    vector < ofPoint > offsetPointsCopy;
+    offsetPointsCopy.reserve(offsetPts.size());
+    
+    // size of our kernel (take me +/- kernel size, so 3 = 1+ 3+3, 7 values).
+    int kernelSize = 15;
+    
+    for (int i = 0; i < offsetPts.size(); i++){
+        
+        // fill an array with values around i.
+        vector < ofPoint > median;
+        for (int j = i - kernelSize; j <= i + kernelSize; j++){
+            int jSafe = ofClamp(j, 0, offsetPts.size() -1);
+            median.push_back(offsetPts[jSafe]);            
+            
+        }
+        
+        // sort the array
+        sort(median.begin(), median.end(), sortPtsByY);
+        
+        // take the middle value
+        ofPoint medVal = median[kernelSize];  // take the middle value;
+        
+        offsetPointsCopy[i] = medVal;
+    }
+    
+    
+    
+    for (int x = 0; x < width; x++){
+         ofFloatColor newOffset;
+         newOffset.r = (float)offsetPointsCopy[x].y/(float)height;
+        offSet.setColor(x, 0, newOffset);
+    }
+
+    
+    
 
     offSetTexture.loadData(offSet);
 }
