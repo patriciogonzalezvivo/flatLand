@@ -1,6 +1,10 @@
 #include "testApp.h"
 #define STRINGIFY(A) #A
 
+bool sortColor (const ofColor &a, const ofColor &b){
+    return a.getBrightness() > b.getBrightness();
+}
+
 //--------------------------------------------------------------
 void testApp::setup(){
     ofSetVerticalSync(true);
@@ -8,23 +12,30 @@ void testApp::setup(){
     gui.setup("panel");
     gui.add(horizon.setup("horizon",0.5,0.0,1.0));
     gui.add(threshold.setup("threshold",80.0f,0.0f,255.0f));
-    gui.add(thresholdSmoothing.setup("threshold_Smoothing",0.1f, 0.0f, 1.0f));
+    gui.add(thresholdSmoothing.setup("threshold_Smoothing",0.1f, 0.0f, 0.2f));
     gui.add(transitionSmoothing.setup("transition_Smoothing", 0.6f, 0.0f, 1.0f));
     
     bImage = sourceImage.loadImage("03.jpeg");
-    offSetTexture.allocate(sourceImage.width,1, GL_RGB32F);
+    offSetTexture.allocate(sourceImage.width,1, GL_RGB16F);
+    offSet.allocate(sourceImage.width, 1, 3);
     targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
     
     string fragShader = STRINGIFY(uniform sampler2DRect offsetTexture;
                                   uniform sampler2DRect sourceTexture;
                                   uniform float height;
                                   uniform float horizon;
+                                  uniform float transitionSmoothing;
                                   
                                   void main(){
                                       vec2 st = gl_TexCoord[0].st;
                                       
-                                      float horizonOffset = texture2DRect(offsetTexture, vec2(st.x,1.0)).r * height;
                                       float horizonLine = horizon * height;
+                                      
+                                      float previuspreviusOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).b;
+                                      float previusOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).g;
+                                      float actualOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).r;
+                                      
+                                      float horizonOffset = actualOffset * height;
                                       
                                       horizonOffset = clamp(horizonOffset,0.0,height);
                                       float offSet = st.y + horizonOffset - horizonLine;
@@ -33,7 +44,7 @@ void testApp::setup(){
                                       
                                       if ( (offSet > height) || (offSet < 0.0 )){
                                           color = vec4(0.0,0.0,0.0,0.0);
-                                      } 
+                                      }
                                       
                                       gl_FragColor = color;
                                   }
@@ -41,6 +52,11 @@ void testApp::setup(){
     
     flatShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragShader);
     flatShader.linkProgram();
+    
+    
+    medianShader.load("", "median.frag");
+    
+    bRecord = false;
 }
 
 void testApp::processImage(ofImage & input, int _threshold){
@@ -49,21 +65,32 @@ void testApp::processImage(ofImage & input, int _threshold){
 
 void  testApp::processImage(ofPixels & srcPixels, int _threshold){
     
+    offsetPts.clear();
+    
     int width = srcPixels.getWidth();
     int height = srcPixels.getHeight();
     
-    ofFloatPixels offSet;
-    offSet.allocate(width, 1, 3);
-    
     for (int x = 0; x < width; x++){
         ofColor a = srcPixels.getColor(x, 0);
+        ofFloatColor prevOffSet = offSet.getColor(x, 0);
         offSet.setColor(x, 0, ofFloatColor(0.0));
         
+        
+        offsetPts.push_back(ofPoint(x, 0));
+        
         for(int y = 0; y < height; y++){
-            ofColor b = srcPixels.getColor(x, y);
+            ofFloatColor b = srcPixels.getColor(x, y);
             
             if (ColourDistance(a,b) > _threshold){
-                offSet.setColor(x, 0, ofFloatColor((float)y/(float)height));
+                ofFloatColor newOffset;
+                newOffset.r = (float)y/(float)height;
+                
+                offsetPts[x].y = y;
+                
+                newOffset.g = prevOffSet.r; 
+                newOffset.b = prevOffSet.g;
+                
+                offSet.setColor(x, 0, newOffset);
                 break;
             } else {
                 a.lerp(b,thresholdSmoothing);
@@ -89,6 +116,7 @@ void testApp::update(){
     
     flatShader.begin();
     flatShader.setUniformTexture("offsetTexture", offSetTexture, 0);
+    flatShader.setUniform1f("transitionSmoothing", transitionSmoothing);
     flatShader.setUniform1f("horizon", horizon);
     
     if (bImage){
@@ -109,6 +137,16 @@ void testApp::update(){
     flatShader.end();
     targetFbo.end();
     
+    if (bRecord){
+        ofImage newFrame;
+        newFrame.allocate(targetFbo.getWidth(), targetFbo.getHeight(), OF_IMAGE_COLOR_ALPHA);
+        ofPixels pixels;
+        targetFbo.readToPixels(pixels);
+        newFrame.setFromPixels(pixels);
+        newFrame.saveImage( ofToString(ofGetFrameNum())+".png" );
+        sourceVideo.nextFrame();
+    }
+    
     ofSetWindowTitle(ofToString(ofGetFrameRate()));
 }
 
@@ -123,6 +161,13 @@ void testApp::draw(){
         sourceVideo.draw(0, 0);
         targetFbo.draw(sourceVideo.getWidth(),0);
     }
+    
+    ofSetColor(255,0,0);
+    ofPolyline line;
+    line.addVertices(offsetPts);
+    line.draw();
+    ofSetColor(255,255,255);
+    
     ofPopMatrix();
 
     ofPushMatrix();
@@ -130,6 +175,8 @@ void testApp::draw(){
     ofScale(10, 10);
     offSetTexture.draw(0,0);
     ofPopMatrix();
+    
+    
     
     gui.draw();
 }
@@ -154,11 +201,19 @@ void testApp::keyPressed(int key){
     if(key == 'l') {
         gui.loadFromFile("settings.xml");
     }
+    
+    if (key == ' '){
+        sourceVideo.stop();
+        bRecord = true;
+    }
 }
 
 //--------------------------------------------------------------
 void testApp::keyReleased(int key){
-
+    if (key == ' '){
+        bRecord = false;
+        sourceVideo.play();
+    }
 }
 
 //--------------------------------------------------------------
@@ -199,13 +254,15 @@ void testApp::dragEvent(ofDragInfo dragInfo){
         if (bImage){
             targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
             offSetTexture.clear();
-            offSetTexture.allocate(sourceImage.width,1, GL_RGB32F);
+            offSetTexture.allocate(sourceImage.width,1, GL_RGB16F);
+            offSet.allocate(sourceImage.width, 1, 3);
         } else {
             if (sourceVideo.loadMovie(dragInfo.files[0])){
                 sourceVideo.play();
                 targetFbo.allocate(sourceVideo.getWidth(), sourceVideo.getHeight()*2);
                 offSetTexture.clear();
-                offSetTexture.allocate(sourceVideo.getWidth(),1, GL_RGB32F);
+                offSetTexture.allocate(sourceVideo.getWidth(),1, GL_RGB16F);
+                offSet.allocate(sourceVideo.width, 1, 3);
             }
         }
     }

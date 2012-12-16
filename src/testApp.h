@@ -2,7 +2,6 @@
 
 #include "ofMain.h"
 #include "ofxGui.h"
-#include "ofxFX.h"
 
 class testApp : public ofBaseApp{
 public:
@@ -27,8 +26,13 @@ public:
 	ofImage         sourceImage;
     ofVideoPlayer   sourceVideo;
     
+    vector < ofPoint > offsetPts;
+    
+    
+    ofFloatPixels   offSet;
     ofTexture       offSetTexture;
     ofShader        flatShader;
+    ofShader        medianShader;
     ofFbo           targetFbo;
 
     ofxPanel        gui;
@@ -38,4 +42,5 @@ public:
     ofxFloatSlider  transitionSmoothing;
     
     bool            bImage;
+    bool            bRecord;
 };
