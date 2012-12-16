@@ -24,42 +24,16 @@ void testApp::setup(){
     offSetTexture.allocate(sourceImage.width,1, GL_RGB16F);
     offSet.allocate(sourceImage.width, 1, 3);
     targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
-    
-    string fragShader = STRINGIFY(uniform sampler2DRect offsetTexture;
-                                  uniform sampler2DRect sourceTexture;
-                                  uniform float height;
-                                  uniform float horizon;
-                                  uniform float transitionSmoothing;
-                                  
-                                  void main(){
-                                      vec2 st = gl_TexCoord[0].st;
-                                      
-                                      float horizonLine = horizon * height;
-                                      
-                                      float actualOffset = texture2DRect(offsetTexture, vec2(st.x,0.5)).r;
-                                      
-                                      float horizonOffset = actualOffset * height;
-                                      
-                                      horizonOffset = clamp(horizonOffset,0.0,height);
-                                      float offSet = st.y + horizonOffset - horizonLine;
-                                      
-                                      vec4 color = texture2DRect(sourceTexture, vec2(st.x, offSet));
-                                      
-                                      if ( (offSet > height) || (offSet < 0.0 )){
-                                          color = vec4(0.0,0.0,0.0,0.0);
-                                      }
-                                      
-                                      gl_FragColor = color;
-                                  }
-                                  );
-    
-    flatShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragShader);
+        
+    //flatShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragShader);
+    flatShader.load("", "flat.frag");
     flatShader.linkProgram();
     
     
     medianShader.load("", "median.frag");
     
     bRecord = false;
+    lastLoadTime = 0;
 }
 
 void testApp::processImage(ofImage & input, int _threshold){
@@ -149,6 +123,10 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
 
 //--------------------------------------------------------------
 void testApp::update(){
+    
+    
+  
+    
     
     if (bImage){
         processImage(sourceImage.getPixelsRef(), threshold);
@@ -251,6 +229,10 @@ void testApp::keyPressed(int key){
     if (key == ' '){
         sourceVideo.stop();
         bRecord = true;
+    }
+    
+    if (key == 'z'){
+        flatShader.load("", "flat.frag");
     }
 }
 

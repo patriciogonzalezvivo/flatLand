@@ -43,4 +43,7 @@ public:
     
     bool            bImage;
     bool            bRecord;
+    
+    float lastLoadTime;
+    
 };
