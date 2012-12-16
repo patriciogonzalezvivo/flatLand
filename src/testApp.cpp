@@ -18,13 +18,18 @@ void testApp::setup(){
     gui.add(horizon.setup("horizon",0.5,0.0,1.0));
     gui.add(threshold.setup("threshold",80.0f,0.0f,255.0f));
     gui.add(thresholdSmoothing.setup("threshold_Smoothing",0.1f, 0.0f, 0.2f));
-    gui.add(transitionSmoothing.setup("transition_Smoothing", 0.6f, 0.0f, 1.0f));
+    gui.add(transitionSmoothing.setup("transition_Smoothing", 15, 0.0f, 50.0f));
+    gui.add(timeSmoothing.setup("time_Smoothing", 0.7, 0.0, 1.0));
+    gui.add(kernelSize.setup("kernel_Size", 15, 0, 50));
+    gui.add(powerHorizon.setup("power_horizon", 3.0, 0.0, 10.0));
     
     bImage = sourceImage.loadImage("03.jpeg");
     offSetTexture.allocate(sourceImage.width,1, GL_RGB16F);
     offSet.allocate(sourceImage.width, 1, 3);
     targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
-        
+    
+    offsetPointsCopySmoothed.resize(sourceImage.getWidth());
+    
     //flatShader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragShader);
     flatShader.load("", "flat.frag");
     flatShader.linkProgram();
@@ -80,8 +85,7 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
     }
     
     // size of our kernel (take me +/- kernel size, so 3 = 1+ 3+3, 7 values).
-    int kernelSize = 15;
-    
+    //
     for (int i = 0; i < offsetPts.size(); i++){
         
         // fill an array with values around i.
@@ -101,9 +105,20 @@ void  testApp::processImage(ofPixels & srcPixels, int _threshold){
         offsetPointsCopy[i] = medVal;
     }
     
+    
+    ofPolyline ptsTemp;
+    ptsTemp.addVertices(offsetPointsCopy);
+    ptsTemp = ptsTemp.getSmoothed(transitionSmoothing);
+    
+    //float pct = ofMap(ofGetMouseX(), 0, ofGetWidth(), 0, 1, true);
+    
     for (int x = 0; x < width; x++){
+        //ptsTemp.getVertices()[x].y += 100 * sin(x /1000.0 + ofGetElapsedTimef());
+        
+        offsetPointsCopySmoothed [x] = (1.0-timeSmoothing) * offsetPointsCopySmoothed[x] + (timeSmoothing) * ptsTemp.getVertices()[x];
+        
          ofFloatColor newOffset;
-         newOffset.r = (float)offsetPointsCopy[x].y/(float)height;
+         newOffset.r = (float)offsetPointsCopySmoothed[x].y/(float)height;
         offSet.setColor(x, 0, newOffset);
     }
 
@@ -125,8 +140,8 @@ void testApp::update(){
     
     flatShader.begin();
     flatShader.setUniformTexture("offsetTexture", offSetTexture, 0);
-    flatShader.setUniform1f("transitionSmoothing", transitionSmoothing);
     flatShader.setUniform1f("horizon", horizon);
+    flatShader.setUniform1f("power", powerHorizon);
     
     if (bImage){
         flatShader.setUniformTexture("sourceTexture", sourceImage.getTextureReference(), 1);
@@ -271,6 +286,7 @@ void testApp::dragEvent(ofDragInfo dragInfo){
         if (bImage){
             targetFbo.allocate(sourceImage.getWidth(), sourceImage.getHeight()*2);
             offSetTexture.clear();
+            offsetPointsCopySmoothed.resize(sourceImage.width);
             offSetTexture.allocate(sourceImage.width,1, GL_RGB16F);
             offSet.allocate(sourceImage.width, 1, 3);
         } else {
@@ -280,6 +296,7 @@ void testApp::dragEvent(ofDragInfo dragInfo){
                 offSetTexture.clear();
                 offSetTexture.allocate(sourceVideo.getWidth(),1, GL_RGB16F);
                 offSet.allocate(sourceVideo.width, 1, 3);
+                offsetPointsCopySmoothed.resize(sourceVideo.width);
             }
         }
     }

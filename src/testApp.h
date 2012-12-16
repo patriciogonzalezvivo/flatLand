@@ -29,6 +29,8 @@ public:
     vector < ofPoint > offsetPts;
     vector < ofPoint > offsetPointsCopy;
     
+    vector < ofPoint > offsetPointsCopySmoothed;
+    
     ofFloatPixels   offSet;
     ofTexture       offSetTexture;
     ofShader        flatShader;
@@ -40,6 +42,9 @@ public:
     ofxFloatSlider  threshold;
     ofxFloatSlider  thresholdSmoothing;
     ofxFloatSlider  transitionSmoothing;
+    ofxFloatSlider  timeSmoothing;
+    ofxFloatSlider  powerHorizon;
+    ofxIntSlider    kernelSize;
     
     bool            bImage;
     bool            bRecord;

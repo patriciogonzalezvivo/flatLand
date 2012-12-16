@@ -5,7 +5,7 @@ uniform sampler2DRect offsetTexture;
 uniform sampler2DRect sourceTexture;
 uniform float height;
 uniform float horizon;
-uniform float transitionSmoothing;
+uniform float power;
 
 float map(float _value, float _minIn, float _maxIn, float _minOut, float _maxOut){
 	return ((_value - _minIn) / (_maxIn - _minIn) * (_maxOut - _minOut) + _minOut);
@@ -27,19 +27,32 @@ void main(){
 		//	Top
 		//
 	    if (st.y < horizonOffset){
+	    	//	Alpha Top
+	    	//
 	    	color = vec4(0.0,0.0,0.0,0.0);
 	    } else {
-	    	float pct = ((st.y-horizonOffset)/height);
-	    	offset = map(pct,0.0,1.0,0.0,horizonOffset);
-	    	color = texture2DRect(sourceTexture, vec2(st.x, offset));
+	    	//	Profile Top
+	    	//
+	    	float pct = map(st.y, 0.0, height, 0.0, 1.0);
+
+	    	pct = pow(pct, power);
+
+	    	pct *= horizonOffset;
+	    	//(st.y-horizonOffset)/(height-actualOffset);
+	    	//offset = map(pct,0.0,1.0,0.0,horizonOffset);
+	    	color = texture2DRect(sourceTexture, vec2(st.x, pct));
 	    } 
 	} else {
 		//	Buttom
 		//
 		offset = st.y + horizonOffset - height;
 		if ( st.y < (height*2.0-horizonOffset) ){
+			//	Profile Buttom
+			//
 			color = texture2DRect(sourceTexture, vec2(st.x, offset));
 		} else {
+			//	Alpha Buttom
+			//
 			color = vec4(0.0,0.0,0.0,0.0);
 		}
 	}

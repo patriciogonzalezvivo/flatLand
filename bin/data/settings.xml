@@ -1,0 +1,4 @@
+<horizon>0.500000000</horizon>
+<threshold>80.000000000</threshold>
+<threshold_Smoothing>0.100000001</threshold_Smoothing>
+<transition_Smoothing>15.000000000</transition_Smoothing>
